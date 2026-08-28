@@ -4,6 +4,8 @@ Uma plataforma profissional de inteligência de mercado e cruzamento de tendênc
 
 A plataforma adota uma arquitetura descentralizada **sem banco de dados** e sem armazenamento persistente local. Todas as informações de tendência são processadas em tempo real ou sob demanda baseadas em amostragem pública e feeds de busca, garantindo total conformidade legal e de desempenho.
 
+<img width="1275" height="606" alt="prototype" src="https://github.com/user-attachments/assets/3c986724-b581-488a-aa28-0da5a189b417" />
+
 ---
 
 ## 🚀 Arquitetura de Conectores Modulares
