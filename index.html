@@ -1,18 +1,596 @@
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Monitor de Tendências de Produtos</title>
-    <meta name="description" content="Plataforma profissional de inteligência de mercado e monitoramento de tendências de produtos em tempo real nos principais marketplaces." />
-    <meta property="og:title" content="Monitor de Tendências de Produtos" />
-    <meta property="og:description" content="Plataforma profissional de inteligência de mercado e monitoramento de tendências de produtos em tempo real nos principais marketplaces." />
-    <meta property="og:type" content="website" />
-    <meta name="twitter:card" content="summary_large_image" />
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
-</html>
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Monitor de Tendências de Produtos</title>
+  <meta name="description" content="Plataforma profissional de inteligência de mercado e monitoramento de tendências de produtos em tempo real nos principais marketplaces." />
+  
+  <!-- CDNs for visual fidelity and charts -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
+  <!-- Tailwind config for custom warm neutral theme accents -->
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            slate: {
+              50: '#F8FAFC',
+              100: '#F1F5F9',
+              200: '#E2E8F0',
+              300: '#CBD5E1',
+              400: '#94A3B8',
+              500: '#64748B',
+              600: '#475569',
+              700: '#334155',
+              800: '#1E293B',
+              900: '#0F172A',
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    /* Prevent FOUC of icons */
+    .lucide {
+      display: inline-block;
+      stroke-width: 2;
+    }
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col selection:bg-blue-100">
+
+  <!-- TOP HEADER DASHBOARD -->
+  <header class="bg-white border-b border-slate-200 sticky top-0 z-40">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+      <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <!-- Brand identity -->
+        <div class="flex items-center gap-3">
+          <div class="p-2 bg-blue-600 text-white rounded-lg">
+            <i data-lucide="sparkles" class="w-6 h-6"></i>
+          </div>
+          <div>
+            <h1 class="text-xl font-extrabold text-slate-900 tracking-tight leading-none">InteliTrend</h1>
+            <p class="text-xs text-slate-500 font-semibold mt-1">Monitor de Inteligência & Tendências de Produtos</p>
+          </div>
+        </div>
+
+        <!-- Real-time information stats and manual update button -->
+        <div class="flex flex-wrap items-center gap-3 md:self-end">
+          <div class="bg-slate-100/80 border border-slate-200 rounded-lg py-1.5 px-3 flex items-center gap-2 text-xs font-semibold text-slate-600">
+            <span class="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
+            <span>Atualizado: <span id="lastUpdatedTime">--:--</span></span>
+            <span class="text-slate-300">|</span>
+            <span class="flex items-center gap-1">
+              Próximo ciclo em <span id="countdownTimer" class="font-bold text-slate-900">5:00</span>
+            </span>
+          </div>
+
+          <button id="manualRefreshBtn" class="flex items-center gap-1.5 px-3 py-2 bg-blue-600 text-white hover:bg-blue-700 text-xs font-bold rounded shadow-sm transition">
+            <i data-lucide="refresh-cw" id="globalSpinner" class="w-3.5 h-3.5 animate-spin hidden"></i>
+            <span>Atualizar Agora</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- MAIN APP GRID CONTAINER -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex-grow flex flex-col gap-6 w-full">
+
+    <!-- SUB-HEADER KPI METRICS -->
+    <section class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <!-- KPI 1 -->
+      <div class="bg-white rounded-xl border border-slate-200 p-4 shadow-sm flex items-center justify-between">
+        <div>
+          <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Média de Tendência</span>
+          <div class="text-xl font-black text-slate-900 mt-1" id="statAvgScore">-- / 100</div>
+        </div>
+        <div class="p-2 bg-blue-50 text-blue-600 rounded-lg">
+          <i data-lucide="trending-up" class="w-5 h-5"></i>
+        </div>
+      </div>
+
+      <!-- KPI 2 -->
+      <div class="bg-white rounded-xl border border-slate-200 p-4 shadow-sm flex items-center justify-between">
+        <div>
+          <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Anúncios Mapeados</span>
+          <div class="text-xl font-black text-slate-900 mt-1" id="statTotalVolume">0</div>
+        </div>
+        <div class="p-2 bg-emerald-50 text-emerald-600 rounded-lg">
+          <i data-lucide="database" class="w-5 h-5"></i>
+        </div>
+      </div>
+
+      <!-- KPI 3 -->
+      <div class="bg-white rounded-xl border border-slate-200 p-4 shadow-sm flex items-center justify-between">
+        <div>
+          <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Plataformas Ativas</span>
+          <div class="text-xl font-black text-slate-900 mt-1" id="statActiveCount">0</div>
+        </div>
+        <div class="p-2 bg-purple-50 text-purple-600 rounded-lg">
+          <i data-lucide="layers" class="w-5 h-5"></i>
+        </div>
+      </div>
+
+      <!-- KPI 4 -->
+      <div class="bg-white rounded-xl border border-slate-200 p-4 shadow-sm flex items-center justify-between">
+        <div>
+          <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Conectores Estáveis</span>
+          <div class="text-xl font-black text-slate-900 mt-1">4 / 4</div>
+        </div>
+        <div class="p-2 bg-orange-50 text-orange-600 rounded-lg">
+          <i data-lucide="shield-check" class="w-5 h-5"></i>
+        </div>
+      </div>
+    </section>
+
+    <!-- NAVIGATION TAB BAR -->
+    <nav class="bg-slate-100 border border-slate-200 p-1 rounded-xl flex flex-wrap gap-1">
+      <button data-tab="ranking" class="flex-1 min-w-[120px] px-3 py-2.5 rounded-lg text-sm font-bold text-slate-500 hover:text-slate-700 transition flex items-center justify-center gap-1.5 border-b-2 border-blue-600 text-blue-600 bg-white">
+        <i data-lucide="trending-up" class="w-4 h-4"></i>
+        <span>Ranking & Tendências</span>
+      </button>
+
+      <button data-tab="regional" class="flex-1 min-w-[120px] px-3 py-2.5 rounded-lg text-sm font-bold text-slate-500 hover:text-slate-700 transition flex items-center justify-center gap-1.5">
+        <i data-lucide="map-pin" class="w-4 h-4"></i>
+        <span>Análise Regional FB</span>
+      </button>
+
+      <button data-tab="reports" class="flex-1 min-w-[120px] px-3 py-2.5 rounded-lg text-sm font-bold text-slate-500 hover:text-slate-700 transition flex items-center justify-center gap-1.5">
+        <i data-lucide="book-open" class="w-4 h-4"></i>
+        <span>Estudos & Artigos</span>
+      </button>
+
+      <button data-tab="compare" class="flex-1 min-w-[120px] px-3 py-2.5 rounded-lg text-sm font-bold text-slate-500 hover:text-slate-700 transition flex items-center justify-center gap-1.5 relative">
+        <i data-lucide="bar-chart-2" class="w-4 h-4"></i>
+        <span>Comparador</span>
+        <span id="compareBadge" class="hidden absolute top-1 right-2 w-5 h-5 bg-blue-600 text-white rounded-full text-[10px] flex items-center justify-center font-black">0</span>
+      </button>
+
+      <button data-tab="transparency" class="flex-1 min-w-[120px] px-3 py-2.5 rounded-lg text-sm font-bold text-slate-500 hover:text-slate-700 transition flex items-center justify-center gap-1.5">
+        <i data-lucide="info" class="w-4 h-4"></i>
+        <span>Fontes & Transparência</span>
+      </button>
+    </nav>
+
+    <!-- VIEW 1: RANKING & TENDENCIAS PANEL -->
+    <section data-view-panel="ranking" class="bg-white rounded-xl border border-slate-200 p-6 shadow-sm flex flex-col gap-6">
+      
+      <!-- Filters header -->
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <!-- Search bar input -->
+        <div class="relative md:col-span-1">
+          <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2"></i>
+          <input type="text" id="searchQuery" placeholder="Pesquisar produto ou tag..." class="w-full pl-9 pr-3 py-2 border border-slate-200 rounded text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:border-blue-600 font-medium bg-slate-50" />
+        </div>
+
+        <!-- Category Dropdown -->
+        <div>
+          <select id="categoryFilter" class="w-full py-2 px-3 border border-slate-200 rounded text-sm text-slate-700 focus:outline-none focus:border-blue-600 font-semibold bg-slate-50">
+            <option value="all">Todas as Categorias</option>
+            <option value="Eletrônicos">Eletrônicos</option>
+            <option value="Celulares">Celulares</option>
+            <option value="Beleza">Beleza e Cuidado Pessoal</option>
+            <option value="Casa">Casa e Decoração</option>
+            <option value="Esportes">Esportes</option>
+          </select>
+        </div>
+
+        <!-- Location Dropdown -->
+        <div>
+          <select id="locationFilter" class="w-full py-2 px-3 border border-slate-200 rounded text-sm text-slate-700 focus:outline-none focus:border-blue-600 font-semibold bg-slate-50">
+            <option value="Brasil">Brasil (Nacional)</option>
+            <option value="São Paulo">São Paulo (Estado)</option>
+            <option value="Rio de Janeiro">Rio de Janeiro (Estado)</option>
+          </select>
+        </div>
+
+        <!-- Marketplace Channel -->
+        <div>
+          <select id="marketplaceFilter" class="w-full py-2 px-3 border border-slate-200 rounded text-sm text-slate-700 focus:outline-none focus:border-blue-600 font-semibold bg-slate-50">
+            <option value="all">Canais Cruzados (Todos)</option>
+            <option value="mercadolivre">Mercado Livre</option>
+            <option value="shopee">Shopee</option>
+            <option value="amazon">Amazon</option>
+            <option value="facebook">FB Marketplace</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- High density data table -->
+      <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse">
+          <thead>
+            <tr class="border-b border-slate-200 text-xs font-bold text-slate-400 uppercase tracking-wider">
+              <th class="py-3 px-4 w-12">Pos</th>
+              <th class="py-3 px-4">Produto / Categoria</th>
+              <th class="py-3 px-4">Média Preço</th>
+              <th class="py-3 px-4 w-44">Pontuação de Tendência</th>
+              <th class="py-3 px-4">Crescimento</th>
+              <th class="py-3 px-4">Anúncios</th>
+              <th class="py-3 px-4 w-44">Ações</th>
+            </tr>
+          </thead>
+          <tbody id="rankingTableBody">
+            <!-- Populated dynamically via main.js -->
+            <tr>
+              <td colspan="7" class="text-center py-10 text-slate-400 font-semibold">
+                Buscando indicadores em tempo real...
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Pagination/Load more action -->
+      <div class="flex justify-center" id="loadMoreContainer">
+        <button id="loadMoreBtn" class="px-5 py-2 border border-slate-200 hover:border-slate-300 text-slate-700 text-xs font-bold rounded bg-slate-50 transition">
+          Carregar Mais Tendências
+        </button>
+      </div>
+    </section>
+
+    <!-- VIEW 2: FACEBOOK REGIONAL MODULE PANEL -->
+    <section data-view-panel="regional" class="bg-white rounded-xl border border-slate-200 p-6 shadow-sm flex flex-col gap-6 hidden">
+      <div class="border-b border-slate-100 pb-4">
+        <h2 class="text-base font-extrabold text-slate-900 leading-tight">Análise Regional do Facebook Marketplace</h2>
+        <p class="text-xs text-slate-400 font-medium mt-1">Monitore e estime a ocorrência de anúncios e demandas específicas por geolocalização no país.</p>
+      </div>
+
+      <!-- Filtering Form parameters -->
+      <form id="regionalForm" class="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
+        <div>
+          <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Termo de Consulta</label>
+          <input type="text" id="regionalSearchQuery" placeholder="Ex: iPhone, Bicicleta..." required class="w-full py-2 px-3 border border-slate-200 rounded text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:border-blue-600 bg-slate-50 font-medium" />
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Estado (UF)</label>
+          <select id="regionalState" class="w-full py-2 px-3 border border-slate-200 rounded text-sm text-slate-700 focus:outline-none focus:border-blue-600 bg-slate-50 font-semibold">
+            <option value="SP">São Paulo (SP)</option>
+            <option value="RJ">Rio de Janeiro (RJ)</option>
+            <option value="MG">Minas Gerais (MG)</option>
+            <option value="PR">Paraná (PR)</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Cidade de Referência</label>
+          <input type="text" id="regionalCity" value="São Paulo" required class="w-full py-2 px-3 border border-slate-200 rounded text-sm text-slate-800 focus:outline-none focus:border-blue-600 bg-slate-50 font-semibold" />
+        </div>
+
+        <div class="flex flex-col gap-2">
+          <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider">Raio Máximo: <span id="radiusLabel" class="text-blue-600 font-black">10 km</span></label>
+          <input type="range" id="regionalRadius" min="5" max="100" step="5" value="10" oninput="document.getElementById('radiusLabel').textContent = this.value + ' km'" class="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600" />
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Categoria Geral</label>
+          <select id="regionalCategory" class="w-full py-2 px-3 border border-slate-200 rounded text-sm text-slate-700 focus:outline-none focus:border-blue-600 bg-slate-50 font-semibold">
+            <option value="all">Todas as Categorias</option>
+            <option value="Celulares">Celulares / Acessórios</option>
+            <option value="Móveis">Móveis / Decoração</option>
+            <option value="Eletrônicos">Eletrodomésticos</option>
+            <option value="Esportes">Esportes / Lazer</option>
+          </select>
+        </div>
+
+        <div class="md:col-span-5 flex justify-end">
+          <button type="submit" class="flex items-center gap-1.5 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded transition shadow-sm">
+            <i data-lucide="refresh-cw" id="regionalSpinner" class="w-3.5 h-3.5 animate-spin hidden"></i>
+            <span>Mapear Atividade Local</span>
+          </button>
+        </div>
+      </form>
+
+      <!-- Results Data table -->
+      <div class="overflow-x-auto mt-2">
+        <table class="w-full text-left border-collapse" id="regionalResultsTable">
+          <thead>
+            <tr class="border-b border-slate-200 text-xs font-bold text-slate-400 uppercase tracking-wider">
+              <th class="py-3 px-4">Produto Mapeado</th>
+              <th class="py-3 px-4">Categoria Estimada</th>
+              <th class="py-3 px-4">Preço Médio Estimado</th>
+              <th class="py-3 px-4">Ocorrência Regional</th>
+              <th class="py-3 px-4 w-44">Ação</th>
+            </tr>
+          </thead>
+          <tbody id="regionalTableBody">
+            <tr>
+              <td colspan="5" class="text-center py-10 text-slate-400 font-semibold">
+                Preencha os dados e clique em Mapear para obter amostragem regional.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- VIEW 3: ESTUDOS & ARTIGOS PANEL -->
+    <section data-view-panel="reports" class="grid grid-cols-1 md:grid-cols-2 gap-6 hidden" id="reportsContainer">
+      <!-- Populated dynamically via main.js -->
+    </section>
+
+    <!-- VIEW 4: COMPARADOR DE PRODUTOS PANEL -->
+    <section data-view-panel="compare" class="bg-white rounded-xl border border-slate-200 p-6 shadow-sm flex flex-col gap-6 hidden">
+      <div class="border-b border-slate-100 pb-4 flex items-center justify-between">
+        <div>
+          <h2 class="text-base font-extrabold text-slate-900 leading-tight">Painel Comparativo de Produtos</h2>
+          <p class="text-xs text-slate-400 font-medium mt-1">Compare o desempenho, oscilações de preços e volume em tempo real de até 4 produtos.</p>
+        </div>
+        <button id="clearCompareBtn" class="text-xs text-rose-600 font-bold hover:underline">Limpar Todos</button>
+      </div>
+
+      <!-- EMPTY STATE COMPARISON -->
+      <div id="emptyCompareState" class="py-12 flex flex-col items-center justify-center text-center">
+        <div class="p-3 bg-slate-100 rounded-full text-slate-400 mb-3">
+          <i data-lucide="bar-chart-2" class="w-6 h-6"></i>
+        </div>
+        <h3 class="text-sm font-bold text-slate-700">Seu comparador está vazio</h3>
+        <p class="text-xs text-slate-400 max-w-xs mt-1">Vá para a lista de tendências e clique em "Comparar" em até 4 produtos para ver a correlação de histórico aqui.</p>
+      </div>
+
+      <!-- ACTIVE COMPARISON CONTENT -->
+      <div id="activeCompareState" class="hidden flex flex-col gap-6">
+        <!-- Comparative chart line representation -->
+        <div class="border border-slate-200 rounded-lg p-4 bg-slate-50">
+          <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">Correlação Histórica do Índice de Tendência</h3>
+          <div class="h-64 relative w-full">
+            <canvas id="compareChartCanvas"></canvas>
+          </div>
+        </div>
+
+        <!-- Structural matrix table -->
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse">
+            <thead>
+              <tr class="border-b border-slate-200 text-xs font-bold text-slate-400 uppercase tracking-wider">
+                <th class="py-3 px-4">Produto</th>
+                <th class="py-3 px-4">Canal</th>
+                <th class="py-3 px-4">Preço Médio</th>
+                <th class="py-3 px-4">Pontuação de Tendência</th>
+                <th class="py-3 px-4">Oscilação</th>
+                <th class="py-3 px-4 max-w-xs">Análise de Oportunidade</th>
+                <th class="py-3 px-4 text-right">Ação</th>
+              </tr>
+            </thead>
+            <tbody id="compareTableBody">
+              <!-- Rendered via main.js -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- VIEW 5: FONTES & TRANSPARENCIA PANEL -->
+    <section data-view-panel="transparency" class="bg-white rounded-xl border border-slate-200 p-6 shadow-sm flex flex-col gap-6 hidden">
+      <div class="border-b border-slate-100 pb-4">
+        <h2 class="text-base font-extrabold text-slate-900 leading-tight">Transparência de Fontes & Compliance</h2>
+        <p class="text-xs text-slate-400 font-medium mt-1">Detalhamento legal do processamento analítico, origens de dados cruzados e taxas de refresh.</p>
+      </div>
+
+      <!-- Connector cards grid -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        
+        <!-- ML status -->
+        <div class="border border-slate-200 rounded-lg p-4 bg-slate-50 flex items-start gap-3">
+          <div class="p-2 bg-yellow-50 text-yellow-700 rounded border border-yellow-200">
+            <i data-lucide="database" class="w-4 h-4"></i>
+          </div>
+          <div>
+            <div class="flex items-center gap-2 mb-1">
+              <span class="text-sm font-bold text-slate-900">API Oficial do Mercado Livre</span>
+              <span class="px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-800 text-[10px] font-bold border border-emerald-200">Online</span>
+            </div>
+            <p class="text-xs text-slate-500 leading-relaxed mb-1">Conexão direta com endpoints de buscas e tendências em tempo real (`https://api.mercadolibre.com/sites/MLB`).</p>
+            <div class="text-[10px] font-semibold text-slate-400">Rate Limit: 60 requisições/min • Coleta segura sem armazenamento</div>
+          </div>
+        </div>
+
+        <!-- FB status -->
+        <div class="border border-slate-200 rounded-lg p-4 bg-slate-50 flex items-start gap-3">
+          <div class="p-2 bg-blue-50 text-blue-700 rounded border border-blue-200">
+            <i data-lucide="map-pin" class="w-4 h-4"></i>
+          </div>
+          <div>
+            <div class="flex items-center gap-2 mb-1">
+              <span class="text-sm font-bold text-slate-900">Amostragem FB Marketplace</span>
+              <span class="px-1.5 py-0.5 rounded bg-amber-50 text-amber-800 text-[10px] font-bold border border-amber-200">Simulação Analítica</span>
+            </div>
+            <p class="text-xs text-slate-500 leading-relaxed mb-1">Calculado de forma estatística com base em tendências populacionais locais e amostragem de buscas públicas.</p>
+            <div class="text-[10px] font-semibold text-slate-400">Totalmente em conformidade com as diretrizes de privacidade</div>
+          </div>
+        </div>
+
+        <!-- Amazon status -->
+        <div class="border border-slate-200 rounded-lg p-4 bg-slate-50 flex items-start gap-3">
+          <div class="p-2 bg-slate-100 text-slate-700 rounded border border-slate-200">
+            <i data-lucide="layers" class="w-4 h-4"></i>
+          </div>
+          <div>
+            <div class="flex items-center gap-2 mb-1">
+              <span class="text-sm font-bold text-slate-900">Mapeamento Best Sellers Amazon</span>
+              <span class="px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-800 text-[10px] font-bold border border-emerald-200">Online</span>
+            </div>
+            <p class="text-xs text-slate-500 leading-relaxed mb-1">Leitura do indexador de mais vendidos e cruzamento de comportamento por volume e variação de preço.</p>
+            <div class="text-[10px] font-semibold text-slate-400">Taxa de Refresh: ciclos de cache de 5 minutos</div>
+          </div>
+        </div>
+
+        <!-- Shopee status -->
+        <div class="border border-slate-200 rounded-lg p-4 bg-slate-50 flex items-start gap-3">
+          <div class="p-2 bg-orange-50 text-orange-700 rounded border border-orange-200">
+            <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+          </div>
+          <div>
+            <div class="flex items-center gap-2 mb-1">
+              <span class="text-sm font-bold text-slate-900">Sugestões de Busca Shopee BR</span>
+              <span class="px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-800 text-[10px] font-bold border border-emerald-200">Online</span>
+            </div>
+            <p class="text-xs text-slate-500 leading-relaxed mb-1">Estudo de comportamento de tags em alta e volume médio de anúncios orgânicos sugeridos no autocompletar.</p>
+            <div class="text-[10px] font-semibold text-slate-400">Atualização cruzada via navegador sem armazenamento local</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Legal & Architecture section -->
+      <div class="border border-slate-100 rounded-xl p-5 bg-blue-50/20 text-slate-600 text-sm leading-relaxed flex flex-col gap-4">
+        <div>
+          <h3 class="font-bold text-slate-800 flex items-center gap-1.5 mb-1 text-sm uppercase tracking-wider">
+            <i data-lucide="info" class="w-4 h-4 text-blue-600"></i>
+            Como o Índice de Tendência (Trend Score) é Calculado?
+          </h3>
+          <p class="text-xs">
+            Nossa plataforma combina o volume estimado de anúncios em tempo real (peso de 30%), a oscilação de interesse nas últimas pesquisas cruzadas (peso de 40%) e a concorrência geral entre vendedores no nicho (peso de 30%). O resultado final é normalizado em uma escala exponencial de 0 a 100 pontos, garantindo dados consistentes e claros para a tomada de decisão.
+          </p>
+        </div>
+
+        <div class="border-t border-slate-200 pt-3">
+          <h3 class="font-bold text-slate-800 flex items-center gap-1.5 mb-1 text-sm uppercase tracking-wider">
+            Ausência de Banco de Dados local
+          </h3>
+          <p class="text-xs">
+            Para garantir conformidade de performance, a plataforma opera 100% sob demanda utilizando chamadas diretas no cliente (CORS habilitado) e cache local volátil na memória do navegador. Nenhuma informação pessoal ou comportamento de pesquisa é persistido fora do seu terminal.
+          </p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- PRODUCT DETAIL MODAL BACKDROP -->
+  <div id="detailModal" class="fixed inset-0 bg-slate-950/40 backdrop-blur-sm z-50 items-center justify-center p-4 hidden">
+    
+    <!-- Modal Dialog Body container -->
+    <div class="bg-white rounded-xl shadow-xl border border-slate-200 max-w-2xl w-full max-h-[90vh] overflow-y-auto flex flex-col">
+      <!-- Modal Header -->
+      <div class="p-5 border-b border-slate-100 flex items-start justify-between">
+        <div>
+          <h3 class="text-base font-extrabold text-slate-900 leading-tight" id="modalTitle">Nome do Produto</h3>
+          <div class="flex items-center gap-2 mt-1.5">
+            <span class="text-xs text-slate-400 font-bold" id="modalCategory">Categoria</span>
+            <span class="text-slate-300">•</span>
+            <span id="modalPlatformBadge" class="px-2 py-0.5 rounded text-[10px] font-bold">Plataforma</span>
+          </div>
+        </div>
+        <button id="closeModalBtn" class="p-1 rounded hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <!-- Modal Body -->
+      <div class="p-6 flex flex-col gap-6">
+        
+        <!-- KPI Row -->
+        <div class="grid grid-cols-3 gap-4">
+          <div class="border border-slate-100 rounded-lg p-3 bg-slate-50/50">
+            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Média de Preço</span>
+            <span class="text-base font-black text-slate-800 mt-1 block" id="modalPrice">R$ 0,00</span>
+          </div>
+
+          <div class="border border-slate-100 rounded-lg p-3 bg-slate-50/50">
+            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Crescimento Semanal</span>
+            <span class="text-base font-black mt-1 block" id="modalGrowth">0%</span>
+          </div>
+
+          <div class="border border-slate-100 rounded-lg p-3 bg-slate-50/50">
+            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Índice de Tendência</span>
+            <span class="text-base font-black text-blue-600 mt-1 block" id="modalScore">0 / 100</span>
+          </div>
+        </div>
+
+        <!-- Interactive Chart tab selector -->
+        <div class="border border-slate-200 rounded-xl p-4 flex flex-col gap-3">
+          <div class="flex items-center justify-between border-b border-slate-100 pb-2">
+            <span class="text-xs font-bold text-slate-700">Histórico de Desempenho (6 dias)</span>
+            <div class="flex gap-1.5">
+              <button data-modal-tab="score" class="px-2 py-1 text-[10px] font-extrabold border-b-2 border-blue-600 text-blue-600">Índice</button>
+              <button data-modal-tab="price" class="px-2 py-1 text-[10px] font-extrabold border-b-2 border-transparent text-slate-500 hover:text-slate-800">Preço</button>
+              <button data-modal-tab="ads" class="px-2 py-1 text-[10px] font-extrabold border-b-2 border-transparent text-slate-500 hover:text-slate-800">Anúncios</button>
+            </div>
+          </div>
+          <div class="h-44 relative w-full">
+            <canvas id="modalChartCanvas"></canvas>
+          </div>
+        </div>
+
+        <!-- Analytical details row -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+          <div>
+            <span class="font-bold text-slate-500 uppercase tracking-wider block mb-1">Mapeamento Geográfico</span>
+            <div id="modalRegions" class="flex flex-wrap gap-1.5"></div>
+          </div>
+
+          <div>
+            <span class="font-bold text-slate-500 uppercase tracking-wider block mb-1">Anúncios Mapeados</span>
+            <span class="text-slate-800 font-bold" id="modalVolume">0</span> anúncios ativos • <span class="text-slate-800 font-bold" id="modalAdvertisers">0</span> anunciantes concorrentes
+          </div>
+        </div>
+
+        <!-- Related Tags -->
+        <div>
+          <span class="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-1.5">Tags e Palavras Relacionadas</span>
+          <div id="modalKeywords" class="flex flex-wrap gap-1.5"></div>
+        </div>
+
+        <!-- Similar alternatives list -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-slate-100 pt-4">
+          <div>
+            <span class="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-2">Produtos Similares</span>
+            <ul id="modalSimilars" class="flex flex-col gap-1.5"></ul>
+          </div>
+
+          <div>
+            <span class="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-1.5">Avaliação de Oportunidade</span>
+            <p id="modalOpportunityConclusion" class="text-slate-600 leading-relaxed text-xs"></p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal Footer -->
+      <div class="p-5 border-t border-slate-100 flex justify-end gap-3 bg-slate-50 rounded-b-xl">
+        <button id="modalCompareBtn" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded text-sm transition">
+          Adicionar ao Comparador
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- INLINE ERROR MESSAGE CAPABILITY -->
+  <div id="errorMessageContainer" class="fixed bottom-4 right-4 bg-amber-50 border border-amber-200 text-amber-800 p-4 rounded-xl shadow-lg z-50 max-w-sm hidden flex items-start gap-3">
+    <div class="p-1 bg-amber-100 rounded text-amber-700">
+      <i data-lucide="alert-circle" class="w-4 h-4"></i>
+    </div>
+    <div class="flex-grow">
+      <p class="text-xs font-semibold leading-relaxed">Erro de conexão</p>
+      <button onclick="document.getElementById('errorMessageContainer').classList.add('hidden')" class="text-[10px] font-extrabold underline text-amber-900 mt-1 block">Ignorar aviso</button>
+    </div>
+  </div>
+
+  <!-- FOOTER DECLARATION -->
+  <footer class="bg-white border-t border-slate-200 py-6 mt-12 text-center text-xs text-slate-400 font-semibold">
+    <div class="max-w-7xl mx-auto px-4">
+      <p>© 2026 InteliTrend Platform • Painel em conformidade com as diretrizes de dados abertos.</p>
+    </div>
+  </footer>
+
+  <!-- BOOTSTRAP MAIN APPLICATION MODULE -->
+  <script type="module">
+    import { init } from './src/main.js';
+    window.addEventListener('DOMContentLoaded', () => {
+      // Create Lucide Icons
+      lucide.createIcons();
+      // Initialize state engine
+      init();
+    });
+  </script>
+</body>
+</html>
