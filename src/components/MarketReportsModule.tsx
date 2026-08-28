@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { BookOpen, TrendingUp, ExternalLink, RefreshCw, Layers } from 'lucide-react';
 import { MarketReport } from '../types';
+import { TrendsConnector } from '../../connectors';
 
 export default function MarketReportsModule() {
   const [reports, setReports] = useState<MarketReport[]>([]);
@@ -9,11 +10,30 @@ export default function MarketReportsModule() {
   const fetchReports = async () => {
     try {
       setLoading(true);
-      const res = await fetch('/api/market-reports');
-      const data = await res.json();
-      setReports(data);
+      const isStaticDeployment = window.location.hostname.includes('github.io');
+
+      if (isStaticDeployment) {
+        // Modo Serverless / GitHub Pages: Carrega do conector diretamente no navegador
+        const data = TrendsConnector.getMarketReports();
+        setReports(data);
+      } else {
+        // Modo Server-side (desenvolvimento com backend ativo)
+        const res = await fetch('/api/market-reports');
+        if (!res.ok) {
+          throw new Error('Falha ao obter relatórios públicos.');
+        }
+        const data = await res.json();
+        setReports(data);
+      }
     } catch (err) {
       console.error('Erro ao buscar relatórios de e-commerce:', err);
+      // Fallback em caso de falha do servidor
+      try {
+        const data = TrendsConnector.getMarketReports();
+        setReports(data);
+      } catch (fallbackErr) {
+        // No-op
+      }
     } finally {
       setLoading(false);
     }

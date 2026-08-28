@@ -28,6 +28,7 @@ import MarketReportsModule from './components/MarketReportsModule';
 import FacebookRegionalModule from './components/FacebookRegionalModule';
 import ProductDetailModal from './components/ProductDetailModal';
 import ProductCompare from './components/ProductCompare';
+import { TrendsConnector } from '../connectors';
 
 export default function App() {
   // Estado de Navegação / Abas Ativas
@@ -71,23 +72,52 @@ export default function App() {
       setLoading(true);
       setError(null);
       
-      const params = new URLSearchParams();
-      if (searchQuery) params.append('searchQuery', searchQuery);
-      if (categoryFilter !== 'all') params.append('category', categoryFilter);
-      if (locationFilter) params.append('location', locationFilter);
-      if (marketplaceFilter !== 'all') params.append('marketplace', marketplaceFilter);
+      const isStaticDeployment = window.location.hostname.includes('github.io');
 
-      const res = await fetch(`/api/trends?${params.toString()}`);
-      if (!res.ok) {
-        throw new Error('Falha ao conectar-se às fontes de tendências. Verifique sua conexão.');
+      if (isStaticDeployment) {
+        // Modo Serverless / GitHub Pages: Executa o conector diretamente no navegador
+        const data = await TrendsConnector.getUnifiedTrends(
+          searchQuery,
+          categoryFilter,
+          locationFilter,
+          marketplaceFilter
+        );
+        setTrends(data);
+        setLastUpdated(new Date());
+        setCountdown(autoUpdateInterval * 60);
+      } else {
+        // Modo Server-side (desenvolvimento com backend ativo)
+        const params = new URLSearchParams();
+        if (searchQuery) params.append('searchQuery', searchQuery);
+        if (categoryFilter !== 'all') params.append('category', categoryFilter);
+        if (locationFilter) params.append('location', locationFilter);
+        if (marketplaceFilter !== 'all') params.append('marketplace', marketplaceFilter);
+
+        const res = await fetch(`/api/trends?${params.toString()}`);
+        if (!res.ok) {
+          throw new Error('Falha ao conectar-se às fontes de tendências. Verifique sua conexão.');
+        }
+        const data: ProductTrend[] = await res.json();
+        setTrends(data);
+        setLastUpdated(new Date());
+        setCountdown(autoUpdateInterval * 60);
       }
-      const data: ProductTrend[] = await res.json();
-      setTrends(data);
-      setLastUpdated(new Date());
-      setCountdown(autoUpdateInterval * 60);
     } catch (err: any) {
       console.error(err);
-      setError('Algumas fontes podem estar temporariamente indisponíveis devido a limites de requisição públicos. O dashboard continua operacional com dados em cache local.');
+      // Fallback em caso de falha de requisição de rede (ex: servidor desligado)
+      try {
+        const data = await TrendsConnector.getUnifiedTrends(
+          searchQuery,
+          categoryFilter,
+          locationFilter,
+          marketplaceFilter
+        );
+        setTrends(data);
+        setLastUpdated(new Date());
+        setError('Rodando em modo de demonstração direta no navegador (APIs integradas no client).');
+      } catch (fallbackErr) {
+        setError('Algumas fontes podem estar temporariamente indisponíveis devido a limites de requisição públicos. O dashboard continua operacional com dados em cache local.');
+      }
     } finally {
       setLoading(false);
     }

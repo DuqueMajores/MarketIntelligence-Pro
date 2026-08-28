@@ -1,6 +1,7 @@
 import React, { useState, FormEvent } from 'react';
 import { Search, MapPin, Sliders, RefreshCw, AlertCircle, ShoppingBag } from 'lucide-react';
 import { ProductTrend, FacebookMarketplaceRegionFilter } from '../types';
+import { MarketplaceConnector } from '../../connectors';
 
 interface FacebookRegionalModuleProps {
   onSelectProduct: (product: ProductTrend) => void;
@@ -25,30 +26,57 @@ export default function FacebookRegionalModule({ onSelectProduct }: FacebookRegi
       setLoading(true);
       setError(null);
 
-      const response = await fetch('/api/marketplace/facebook', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          searchQuery,
+      const isStaticDeployment = window.location.hostname.includes('github.io');
+
+      if (isStaticDeployment) {
+        // Modo Serverless / GitHub Pages: Executa o conector diretamente no navegador
+        const data = await MarketplaceConnector.getTrendingProducts(searchQuery, category, {
           country,
           state,
           city,
           radius,
           category
-        })
-      });
+        });
+        setProducts(data);
+      } else {
+        // Modo Server-side (desenvolvimento com backend ativo)
+        const response = await fetch('/api/marketplace/facebook', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            searchQuery,
+            country,
+            state,
+            city,
+            radius,
+            category
+          })
+        });
 
-      if (!response.ok) {
-        throw new Error('Falha ao processar análise regional.');
+        if (!response.ok) {
+          throw new Error('Falha ao processar análise regional.');
+        }
+
+        const data = await response.json();
+        setProducts(data);
       }
-
-      const data = await response.json();
-      setProducts(data);
     } catch (err: any) {
       console.error(err);
-      setError(err.message || 'Erro de conexão com o servidor de inteligência local.');
+      // Fallback em caso de erro (ex: servidor desligado)
+      try {
+        const data = await MarketplaceConnector.getTrendingProducts(searchQuery, category, {
+          country,
+          state,
+          city,
+          radius,
+          category
+        });
+        setProducts(data);
+      } catch (fallbackErr) {
+        setError(err.message || 'Erro de conexão com o servidor de inteligência local.');
+      }
     } finally {
       setLoading(false);
     }
