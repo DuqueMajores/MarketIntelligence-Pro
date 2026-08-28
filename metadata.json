@@ -1,0 +1,6 @@
+{
+  "name": "Monitor de Tendências de Produtos",
+  "description": "Plataforma profissional de inteligência de mercado e monitoramento de tendências de produtos em tempo real nos principais marketplaces.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
